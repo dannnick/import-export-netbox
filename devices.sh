@@ -175,9 +175,9 @@ for (( i=0;i<${count};i++ )); do
     data_status=$(echo $devices | jq ".results | .[$i] | .status | .value" | sed -re 's+["]++g')
     data_site_name=$(echo $devices | jq ".results | .[$i] | .site | .name" | sed -re 's+["]++g')
     data_site_slug=$(echo $devices | jq ".results | .[$i] | .site | .slug" | sed -re 's+["]++g')
-    data_location_name=$(echo $devices | jq ".results | .[$i] | .location | .name" | sed -re 's+["]++g')
-    data_location_slug=$(echo $devices | jq ".results | .[$i] | .location | .slug" | sed -re 's+["]++g')
-    data_rack_name=$(echo $devices | jq ".results | .[$i] | .rack | .name" | sed -re 's+["]++g')
+#    data_location_name=$(echo $devices | jq ".results | .[$i] | .location | .name" | sed -re 's+["]++g')
+#    data_location_slug=$(echo $devices | jq ".results | .[$i] | .location | .slug" | sed -re 's+["]++g')
+    data_rack_name_source=$(echo $devices | jq ".results | .[$i] | .rack | .name" | sed -re 's+["]++g')
     data_position=$(echo $devices | jq ".results | .[$i] | .position" | sed -re 's+["]++g')
     data_face=$(echo $devices | jq ".results | .[$i] | .face | .value" | sed -re 's+["]++g')
 
@@ -189,11 +189,12 @@ for (( i=0;i<${count};i++ )); do
     payload+="\"site\": {\"name\": \"$data_site_name\", \"slug\": \"$data_site_slug\"},"
 
   # Überprüfung und Hinzufügen von location
-    if [ "$data_location_name" != "null" ] && [ "$data_location_slug" != "null" ]; then
-        payload+="\"location\": {\"name\": \"$data_location_name\", \"slug\": \"$data_location_slug\"},"
-    fi
-    if [ "$data_rack_name" != "null" ]; then
-        payload+="\"rack\": \"$data_rack_name\","
+#    if [ "$data_location_name" != "null" ] && [ "$data_location_slug" != "null" ]; then
+#        payload+="\"location\": {\"name\": \"$data_location_name\", \"slug\": \"$data_location_slug\"},"
+#    fi
+    if [ "$data_rack_name_source" != "null" ]; then
+        data_rack_id_dest=$(curl -s -k -X GET -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url_dest/api/dcim/racks/" | jq ".results | .[]" | grep "$data_rack_name_source" -B 2 | grep id | sed -re 's+.*: ++g;s+,.*++g')
+        payload+="\"rack\": {\"id\": $data_rack_id_dest},"
     fi
     if [ "$data_position" != "null" ]; then
         payload+="\"position\": $data_position,"
@@ -287,9 +288,52 @@ for (( i=0;i<${count};i++ )); do
     curl -k -X POST -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" --data "$payload" "$url_dest/api/$url_option/" | jq
 done
 
-#Front Ports
-
 #Rear Ports
+url_option=dcim/rear-ports
+url=$url_source/api/$url_option/?limit=0
+rear_ports=$(curl -s -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url")
+count=$(echo $rear_ports | jq '.results | length')
+
+for (( i=0;i<${count};i++ )); do
+    data_devicename=$(echo $rear_ports | jq ".results | .[$i] | .device | .name" | sed -re 's+["]++g')
+    data_name=$(echo $rear_ports | jq ".results | .[$i] | .name" | sed -re 's+["]++g')
+    data_type=$(echo $rear_ports | jq ".results | .[$i] | .type | .value" | sed -re 's+["]++g')
+    data_markconnected=$(echo $rear_ports | jq ".results | .[$i] | .mark_connected" | sed -re 's+["]++g')
+    data_positions=$(echo $rear_ports | jq ".results | .[$i] | .positions" | sed -re 's+["]++g')
+    data_description=$(echo $rear_ports | jq ".results | .[$i] | .description" | sed -re 's+["]++g')
+
+    payload="{"
+
+    # Überprüfung und Hinzufügen von location
+    if [ "$data_devicename" != "null" ]; then
+        payload+="\"device\": {\"name\": \"$data_devicename\"},"
+    fi
+    if [ "$data_name" != "null" ]; then
+        payload+="\"name\": \"$data_name\","
+    fi
+    if [ "$data_type" != "null" ]; then
+        payload+="\"type\": \"$data_type\","
+    fi
+    if [ "$data_markconnected" != "null" ]; then
+        payload+="\"mark_connected\": $data_markconnected,"
+    fi
+    if [ "$data_positions" != "null" ]; then
+        payload+="\"positions\": \"$data_positions\","
+    fi
+    if [ "$data_description" != "null" ] && [ ! -z "$data_description" ]; then
+        payload+="\"description\": \"$data_description\","
+    fi
+
+    # Entfernen des letzten Kommas, falls vorhanden
+    payload="${payload%,}"
+
+    # Hinzufügen des schließenden geschweiften Klammerns
+    payload+="}"
+    
+    curl -k -X POST -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" --data "$payload" "$url_dest/api/$url_option/" | jq
+done
+
+#Front Ports
 
 #Console Ports
 

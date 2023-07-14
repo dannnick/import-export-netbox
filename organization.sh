@@ -184,7 +184,7 @@ for (( i=0;i<${count};i++ )); do
     payload+="}"
 
     # überprüfen, ob schon vorhanden, weil es sonst mehrfach in der netbox drin ist
-    check=$(echo $racks | jq ".results | .[]" | grep "$data_name")
+    check=$(curl -s -k -X GET -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url_dest/api/$url_option/?limit=0" | jq ".results | .[]" | grep "$data_name")
 
     if [ -z "$check" ]; then
         curl -k -X POST -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" --data "$payload" "$url_dest/api/$url_option/" | jq
