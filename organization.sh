@@ -6,30 +6,34 @@ source $(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)/variab
 #Region
 url_option=dcim/regions
 url=$url_source/api/$url_option/?limit=0
-regions=$(curl -s -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url")
+regions=$(curl -s -k -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url")
 count=$(echo $regions | jq '.results | length')
 
-for (( i=0;i<${count};i++ )); do
-    data_name=$(echo $regions | jq ".results | .[$i] | .name" | sed -re 's+["]++g')
-    data_slug=$(echo $regions | jq ".results | .[$i] | .slug" | sed -re 's+["]++g')
-    data_parent=$(echo $regions | jq ".results | .[$i] | .parent" | sed -re 's+["]++g')
-    data_description=$(echo $regions | jq ".results | .[$i] | .description" | sed -re 's+["]++g')
+post_request() {
+    source $(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)/variablen.sh
+    regions_info="$1"
+    url_option=$2
+
+    data_name=$(echo $regions_info | jq -r ".name")
+    data_slug=$(echo $regions_info | jq -r ".slug")
+    data_parent=$(echo $regions_info | jq -r ".parent")
+    data_description=$(echo $regions_info | jq -r ".description")
 
     payload="{"
 
     # Überprüfung und Hinzufügen
-    if [ "$data_name" != "null" ]; then
+    if [ "$data_name" != "null" ] && [ ! -z "$data_name" ]; then
         payload+="\"name\": \"$data_name\","
     fi
-    if [ "$data_slug" != "null" ]; then
+    if [ "$data_slug" != "null" ] && [ ! -z "$data_slug" ]; then
         payload+="\"slug\": \"$data_slug\","
     fi
-    if [ "$data_description" != "null" ] || [ ! -z "$data_description" ]; then
+    if [ "$data_description" != "null" ] && [ ! -z "$data_description" ]; then
         payload+="\"description\": \"$data_description\","
     fi
-    if [ "$data_parent" != "null" ]; then
-        data_parent_name=$(echo $regions | jq ".results | .[$i] | .parent | .name" | sed -re 's+["]++g')
-        data_parent_slug=$(echo $regions | jq ".results | .[$i] | .parent | .slug" | sed -re 's+["]++g')
+    if [ "$data_parent" != "null" ] && [ ! -z "$data_parent" ]; then
+        data_parent_name=$(echo $regions_info | jq -r ".parent.name")
+        data_parent_slug=$(echo $regions_info | jq -r ".parent.slug")
 
         payload+="\"parent\": {\"name\": \"$data_parent_name\", \"slug\": \"$data_parent_slug\"},"
     fi
@@ -40,53 +44,62 @@ for (( i=0;i<${count};i++ )); do
     # Hinzufügen des schließenden geschweiften Klammerns
     payload+="}"
 
-    
-    curl -k -X POST -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" --data "$payload" "$url_dest/api/dcim/regions/" | jq
-done
+    echo "Region: $data_name"
+    curl -s -k -X POST -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" --data "$payload" "$url_dest/api/$url_option/" | jq
+    echo -e "\n\n\n"
+}
+export -f post_request
+
+# Parallele Ausführung der POST-Anfragen
+echo "$regions" | jq -c '.results[]' | parallel -j $how_many_parallel post_request {} "$url_option"
 
 #Sites
 url_option=dcim/sites
 url=$url_source/api/$url_option/?limit=0
-sites=$(curl -s -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url")
+sites=$(curl -s -k -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url")
 count=$(echo $sites | jq '.results | length')
 
-for (( i=0;i<${count};i++ )); do
-    data_name=$(echo $sites | jq ".results | .[$i] | .name" | sed -re 's+["]++g')
-    data_slug=$(echo $sites | jq ".results | .[$i] | .slug" | sed -re 's+["]++g')
-    data_status=$(echo $sites | jq ".results | .[$i] | .status | .value" | sed -re 's+["]++g')
-    data_region_name=$(echo $sites | jq ".results | .[$i] | .region | .name" | sed -re 's+["]++g')
-    data_region_slug=$(echo $sites | jq ".results | .[$i] | .region | .slug" | sed -re 's+["]++g')
-    data_timezone=$(echo $sites | jq ".results | .[$i] | .time_zone" | sed -re 's+["]++g')
-    data_description=$(echo $sites | jq ".results | .[$i] | .description" | sed -re 's+["]++g')
-    data_physical_address=$(echo $sites | jq ".results | .[$i] | .physical_address" | sed -re 's+["]++g')
-    data_latitude=$(echo $sites | jq ".results | .[$i] | .latitude" | sed -re 's+["]++g')
-    data_longitude=$(echo $sites | jq ".results | .[$i] | .longitude" | sed -re 's+["]++g')
+post_request() {
+    source $(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)/variablen.sh
+    sites_info="$1"
+    url_option=$2
+
+    data_name=$(echo $sites_info | jq -r ".name")
+    data_slug=$(echo $sites_info | jq -r ".slug")
+    data_status=$(echo $sites_info | jq -r ".status.value")
+    data_region_name=$(echo $sites_info | jq -r ".region.name")
+    data_region_slug=$(echo $sites_info | jq -r ".region.slug")
+    data_timezone=$(echo $sites_info | jq -r ".time_zone")
+    data_description=$(echo $sites_info | jq -r ".description")
+    data_physical_address=$(echo $sites_info | jq ".physical_address" | sed -re 's+["]++g')
+    data_latitude=$(echo $sites_info | jq -r ".latitude")
+    data_longitude=$(echo $sites_info | jq -r ".longitude")
 
     payload="{"
 
     # Überprüfung und Hinzufügen
-    if [ "$data_name" != "null" ]; then
+    if [ "$data_name" != "null" ] && [ ! -z "$data_name" ]; then
         payload+="\"name\": \"$data_name\","
     fi
-    if [ "$data_slug" != "null" ]; then
+    if [ "$data_slug" != "null" ] && [ ! -z "$data_slug" ]; then
         payload+="\"slug\": \"$data_slug\","
     fi
-    if [ "$data_region_name" != "null" ] && [ "$data_region_slug" != "null" ]; then
+    if [ "$data_region_name" != "null" ] && [ ! -z "$data_region_name" ] && [ "$data_region_slug" != "null" ] && [ ! -z "$data_region_slug" ]; then
         payload+="\"region\": {\"name\": \"$data_region_name\", \"slug\": \"$data_region_slug\"},"
     fi
-    if [ "$data_timezone" != "null" ]; then
+    if [ "$data_timezone" != "null" ] && [ ! -z "$data_timezone" ]; then
         payload+="\"time_zone\": \"$data_timezone\","
     fi
     if [ "$data_description" != "null" ] && [ ! -z "$data_description" ]; then
         payload+="\"description\": \"$data_description\","
     fi
-    if [ "$data_physical_address" != "null" ]; then
+    if [ "$data_physical_address" != "null" ] && [ ! -z "$data_physical_address" ]; then
         payload+="\"physical_address\": \"$data_physical_address\","
     fi
-    if [ "$data_latitude" != "null" ]; then
+    if [ "$data_latitude" != "null" ] && [ ! -z "$data_latitude" ]; then
         payload+="\"latitude\": $data_latitude,"
     fi
-    if [ "$data_longitude" != "null" ]; then
+    if [ "$data_longitude" != "null" ] && [ ! -z "$data_longitude" ]; then
         payload+="\"longitude\": $data_longitude,"
     fi
 
@@ -96,35 +109,46 @@ for (( i=0;i<${count};i++ )); do
     # Hinzufügen des schließenden geschweiften Klammerns
     payload+="}"
 
-    curl -k -X POST -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" --data "$payload" "$url_dest/api/$url_option/" | jq
-done
+    echo "Site: $data_name"
+    curl -s -k -X POST -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" --data "$payload" "$url_dest/api/$url_option/" | jq
+    echo -e "\n\n\n"
+}
+export -f post_request
+
+# Parallele Ausführung der POST-Anfragen
+echo "$sites" | jq -c '.results[]' | parallel -j $how_many_parallel post_request {} "$url_option"
 
 #Locations
 url_option=dcim/locations
 url=$url_source/api/$url_option/?limit=0
-count=$(curl -s -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url" | jq '.results | length')
+locations=$(curl -s -k -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url")
+count=$(echo $locations | jq '.results | length')
 
-for (( i=0;i<${count};i++ )); do
-    data_site_name=$(curl -s -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url" | jq ".results | .[$i] | .site | .name" | sed -re 's+["]++g')
-    data_site_slug=$(curl -s -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url" | jq ".results | .[$i] | .site | .slug" | sed -re 's+["]++g')
-    data_name=$(curl -s -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url" | jq ".results | .[$i] | .name" | sed -re 's+["]++g')
-    data_slug=$(curl -s -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url" | jq ".results | .[$i] | .slug" | sed -re 's+["]++g')
-    data_status=$(curl -s -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url" | jq ".results | .[$i] | .status | .value" | sed -re 's+["]++g')
-    data_description=$(curl -s -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url" | jq ".results | .[$i] | .description" | sed -re 's+["]++g')
+post_request() {
+    source $(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)/variablen.sh
+    locations_info="$1"
+    url_option=$2
+
+    data_site_name=$(echo $locations_info | jq -r ".site.name")
+    data_site_slug=$(echo $locations_info | jq -r ".site.slug")
+    data_name=$(echo $locations_info | jq -r ".name")
+    data_slug=$(echo $locations_info | jq -r ".slug")
+    data_status=$(echo $locations_info | jq -r ".status.value")
+    data_description=$(echo $locations_info | jq -r ".description")
 
     payload="{"
 
     # Überprüfung und Hinzufügen
-    if [ "$data_site_name" != "null" ] && [ "$data_site_slug" != "null" ]; then
+    if [ "$data_site_name" != "null" ] && [ ! -z "$data_site_name" ] && [ "$data_site_slug" != "null" ] && [ ! -z "$data_site_slug" ]; then
         payload+="\"site\": {\"name\": \"$data_site_name\", \"slug\": \"$data_site_slug\"},"
     fi
-    if [ "$data_name" != "null" ]; then
+    if [ "$data_name" != "null" ] && [ ! -z "$data_name" ]; then
         payload+="\"name\": \"$data_name\","
     fi
-    if [ "$data_slug" != "null" ]; then
+    if [ "$data_slug" != "null" ] && [ ! -z "$data_slug" ]; then
         payload+="\"slug\": \"$data_slug\","
     fi
-    if [ "$data_status" != "null" ]; then
+    if [ "$data_status" != "null" ] && [ ! -z "$data_status" ]; then
         payload+="\"status\": \"$data_status\","
     fi
     if [ "$data_description" != "null" ] && [ ! -z "$data_description" ]; then
@@ -137,43 +161,53 @@ for (( i=0;i<${count};i++ )); do
     # Hinzufügen des schließenden geschweiften Klammerns
     payload+="}"
 
-    curl -k -X POST -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" --data "$payload" "$url_dest/api/$url_option/" | jq
-done
+    echo "Location: $data_name"
+    curl -s -k -X POST -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" --data "$payload" "$url_dest/api/$url_option/" | jq
+    echo -e "\n\n\n"
+}
+export -f post_request
+
+# Parallele Ausführung der POST-Anfragen
+echo "$locations" | jq -c '.results[]' | parallel -j $how_many_parallel post_request {} "$url_option"
 
 #Racks
 url_option=dcim/racks
 url=$url_source/api/$url_option/?limit=0
-racks=$(curl -s -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url")
+racks=$(curl -s -k -X GET -H "Authorization: Token $token_source" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url")
 count=$(echo $racks | jq '.results | length')
 
-for (( i=0;i<${count};i++ )); do
-    data_site_name=$(echo $racks | jq ".results | .[$i] | .site | .name" | sed -re 's+["]++g')
-    data_site_slug=$(echo $racks | jq ".results | .[$i] | .site | .slug" | sed -re 's+["]++g')
-    data_name=$(echo $racks | jq ".results | .[$i] | .name" | sed -re 's+["]++g')
-    data_status=$(echo $racks | jq ".results | .[$i] | .status | .value" | sed -re 's+["]++g')
-    data_description=$(echo $racks | jq ".results | .[$i] | .description" | sed -re 's+["]++g')
-    data_width=$(echo $racks | jq ".results | .[$i] | .width | .value")
-    data_uheight=$(echo $racks | jq ".results | .[$i] | .u_height")
+post_request() {
+    source $(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)/variablen.sh
+    racks_info="$1"
+    url_option=$2
+
+    data_site_name=$(echo $racks_info | jq -r ".site.name")
+    data_site_slug=$(echo $racks_info | jq -r ".site.slug")
+    data_name=$(echo $racks_info | jq -r ".name")
+    data_status=$(echo $racks_info | jq -r ".status.value")
+    data_description=$(echo $racks_info | jq -r ".description")
+    data_width=$(echo $racks_info | jq -r ".width.value")
+    data_uheight=$(echo $racks_info | jq -r ".u_height")
 
     payload="{"
 
     # Überprüfung und Hinzufügen
-    if [ "$data_site_name" != "null" ] && [ "$data_site_slug" != "null" ]; then
+    if [ "$data_site_name" != "null" ] && [ ! -z "$data_site_name" ] && [ "$data_site_slug" != "null" ] && [ ! -z "$data_site_slug" ]; then
         payload+="\"site\": {\"name\": \"$data_site_name\", \"slug\": \"$data_site_slug\"},"
     fi
-    if [ "$data_name" != "null" ]; then
+    if [ "$data_name" != "null" ] && [ ! -z "$data_name" ]; then
         payload+="\"name\": \"$data_name\","
     fi
-    if [ "$data_status" != "null" ]; then
+    if [ "$data_status" != "null" ] && [ ! -z "$data_status" ]; then
         payload+="\"status\": \"$data_status\","
     fi
     if [ "$data_description" != "null" ] && [ ! -z "$data_description" ]; then
         payload+="\"description\": \"$data_description\","
     fi
-    if [ "$data_width" != "null" ]; then
+    if [ "$data_width" != "null" ] && [ ! -z "$data_width" ]; then
         payload+="\"width\": $data_width,"
     fi
-    if [ "$data_uheight" != "null" ]; then
+    if [ "$data_uheight" != "null" ] && [ ! -z "$data_uheight" ]; then
         payload+="\"u_height\": $data_uheight,"
     fi
 
@@ -187,6 +221,12 @@ for (( i=0;i<${count};i++ )); do
     check=$(curl -s -k -X GET -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" "$url_dest/api/$url_option/?limit=0" | jq ".results | .[]" | grep "$data_name")
 
     if [ -z "$check" ]; then
-        curl -k -X POST -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" --data "$payload" "$url_dest/api/$url_option/" | jq
+        echo "Rack: $data_name"
+        curl -s -k -X POST -H "Authorization: Token $token_dest" -H "Accept: application/json; inent=4" -H "Content-Type: application/json" --data "$payload" "$url_dest/api/$url_option/" | jq
+        echo -e "\n\n\n"
     fi
-done
+}
+export -f post_request
+
+# Parallele Ausführung der POST-Anfragen
+echo "$racks" | jq -c '.results[]' | parallel -j $how_many_parallel post_request {} "$url_option"
