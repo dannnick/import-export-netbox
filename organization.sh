@@ -188,6 +188,8 @@ post_request() {
     data_description=$(echo $racks_info | jq -r ".description")
     data_width=$(echo $racks_info | jq -r ".width.value")
     data_uheight=$(echo $racks_info | jq -r ".u_height")
+    data_location_name=$(echo $racks_info | jq -r ".location.name")
+    data_location_slug=$(echo $racks_info | jq -r ".location.slug")
 
     payload="{"
 
@@ -209,6 +211,9 @@ post_request() {
     fi
     if [ "$data_uheight" != "null" ] && [ ! -z "$data_uheight" ]; then
         payload+="\"u_height\": $data_uheight,"
+    fi
+    if [ "$data_location_name" != "null" ] && [ ! -z "$data_location_name" ] && [ "$data_location_slug" != "null" ] && [ ! -z "$data_location_slug" ]; then
+        payload+="\"location\": {\"name\": \"$data_location_name\", \"slug\": \"$data_location_slug\"},"
     fi
 
     # Entfernen des letzten Kommas, falls vorhanden
